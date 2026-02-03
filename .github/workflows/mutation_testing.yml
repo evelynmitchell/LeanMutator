@@ -34,8 +34,17 @@ jobs:
       - name: Run mutation tests
         id: mutation
         run: |
+          START_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          START_EPOCH=$(date +%s)
+          echo "start_time=${START_TIME}" >> $GITHUB_OUTPUT
+
           lake exe leanmutator mutate testdata/ --format json --report mutation_results.json -v || true
-          echo "completed=true" >> $GITHUB_OUTPUT
+
+          END_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          END_EPOCH=$(date +%s)
+          DURATION=$((END_EPOCH - START_EPOCH))
+          echo "end_time=${END_TIME}" >> $GITHUB_OUTPUT
+          echo "duration=${DURATION}" >> $GITHUB_OUTPUT
 
       - name: Generate status file
         run: |
@@ -47,7 +56,16 @@ jobs:
             SURVIVED=$(jq -r '.stats.survived' mutation_results.json)
             TIMED_OUT=$(jq -r '.stats.timedOut' mutation_results.json)
             ERRORS=$(jq -r '.stats.errors' mutation_results.json)
-            TIME=$(jq -r '.stats.totalTime' mutation_results.json)
+
+            # Format duration
+            DURATION=${{ steps.mutation.outputs.duration }}
+            if [ "$DURATION" -ge 3600 ]; then
+              DURATION_FMT="$((DURATION / 3600))h $((DURATION % 3600 / 60))m $((DURATION % 60))s"
+            elif [ "$DURATION" -ge 60 ]; then
+              DURATION_FMT="$((DURATION / 60))m $((DURATION % 60))s"
+            else
+              DURATION_FMT="${DURATION}s"
+            fi
 
             cat > testdata/mutation_status.md << EOF
           # Mutation Testing Status
@@ -64,13 +82,15 @@ jobs:
           | Survived | ${SURVIVED} |
           | Timed Out | ${TIMED_OUT} |
           | Errors | ${ERRORS} |
-          | Total Time | ${TIME}ms |
+          | **Duration** | **${DURATION_FMT}** |
 
           ## Test Configuration
 
           - **Target**: \`testdata/\`
           - **Mode**: Isolated (parse-only)
           - **Generator**: LeanMutator
+          - **Started**: ${{ steps.mutation.outputs.start_time }}
+          - **Finished**: ${{ steps.mutation.outputs.end_time }}
 
           ## Notes
 

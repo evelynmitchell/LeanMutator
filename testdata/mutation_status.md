@@ -1,6 +1,6 @@
 # Mutation Testing Status
 
-Last updated: 2026-02-03
+Last updated: 2026-02-03 03:39:00 UTC
 
 ## Summary
 
@@ -12,13 +12,15 @@ Last updated: 2026-02-03
 | Survived | 59 |
 | Timed Out | 0 |
 | Errors | 0 |
-| Total Time | 35ms |
+| **Duration** | **35s** |
 
 ## Test Configuration
 
 - **Target**: `testdata/tests/Sample.lean`
 - **Mode**: Isolated (parse-only)
 - **Generator**: LeanMutator
+- **Started**: 2026-02-03 03:38:25 UTC
+- **Finished**: 2026-02-03 03:39:00 UTC
 
 ## Mutation Operators Applied
 
