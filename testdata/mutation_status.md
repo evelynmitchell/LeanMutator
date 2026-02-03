@@ -1,26 +1,26 @@
 # Mutation Testing Status
 
-Last updated: 2026-02-03 03:48:20 UTC
+Last updated: 2026-02-03 03:50:07 UTC
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Score | 0.00% |
-| Total Mutations | 59 |
+| Files Scanned | 16 |
+| Total Mutations | 104+ |
 | Killed | 0 |
-| Survived | 59 |
+| Survived | 104+ |
 | Timed Out | 0 |
 | Errors | 0 |
-| **Duration** | **1s** |
+| **Duration** | **52s** |
 
 ## Test Configuration
 
-- **Target**: `testdata/tests/Sample.lean`
+- **Target**: `testdata/`
 - **Mode**: Isolated (parse-only)
 - **Generator**: LeanMutator
-- **Started**: 2026-02-03 03:48:19 UTC
-- **Finished**: 2026-02-03 03:48:20 UTC
+- **Started**: 2026-02-03 03:49:15 UTC
+- **Finished**: 2026-02-03 03:50:07 UTC
 
 ## Mutation Operators Applied
 
