@@ -1,10 +1,8 @@
 name: Lean Action CI                                                                                                                                       
                                                                                                                                                              
-on: [push, pull_request, workflow_dispatch]                                                                                                                                  
-                                                                                                                                                             
+on: [push, pull_request, workflow_dispatch]                                                                                                                                                                                                                                                         
   permissions:                                                                                                                                               
-    contents: read                                                                                                                                           
-                                                                                                                                                             
+    contents: read                                                                                                                                                                                                                                                                                                  
   jobs:                                                                                                                                                      
     build:                                                                                                                                                   
       runs-on: ubuntu-latest                                                                                                                                 
