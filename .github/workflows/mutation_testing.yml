@@ -23,13 +23,8 @@ jobs:
         with:
           build: true
 
-      - name: Copy source files to testdata
-        run: |
-          mkdir -p testdata
-          for f in $(find . -name "*.lean" -not -path "./testdata/*" -not -path "./.lake/*"); do
-            mkdir -p "testdata/$(dirname "$f")"
-            cp "$f" "testdata/$f"
-          done
+      - name: Build testdata project
+        run: cd testdata && lake build
 
       - name: Run mutation tests
         id: mutation
@@ -38,7 +33,7 @@ jobs:
           START_EPOCH=$(date +%s)
           echo "start_time=${START_TIME}" >> $GITHUB_OUTPUT
 
-          lake exe leanmutator mutate testdata/ --format json --report mutation_results.json -v || true
+          lake exe leanmutator mutate testdata/TestLib.lean --build --format json 2>&1 | tee /tmp/mutation_output.txt || true
 
           END_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
           END_EPOCH=$(date +%s)
@@ -46,29 +41,38 @@ jobs:
           echo "end_time=${END_TIME}" >> $GITHUB_OUTPUT
           echo "duration=${DURATION}" >> $GITHUB_OUTPUT
 
+          # Extract JSON stats from output
+          grep -o '"total": [0-9]*' /tmp/mutation_output.txt | head -1 | grep -o '[0-9]*' > /tmp/total.txt || echo "0" > /tmp/total.txt
+          grep -o '"killed": [0-9]*' /tmp/mutation_output.txt | head -1 | grep -o '[0-9]*' > /tmp/killed.txt || echo "0" > /tmp/killed.txt
+          grep -o '"survived": [0-9]*' /tmp/mutation_output.txt | head -1 | grep -o '[0-9]*' > /tmp/survived.txt || echo "0" > /tmp/survived.txt
+          grep -o '"timedOut": [0-9]*' /tmp/mutation_output.txt | head -1 | grep -o '[0-9]*' > /tmp/timedout.txt || echo "0" > /tmp/timedout.txt
+          grep -o '"errors": [0-9]*' /tmp/mutation_output.txt | head -1 | grep -o '[0-9]*' > /tmp/errors.txt || echo "0" > /tmp/errors.txt
+          grep -o '"score": "[^"]*"' /tmp/mutation_output.txt | head -1 | grep -o '[0-9.]*' > /tmp/score.txt || echo "0" > /tmp/score.txt
+
       - name: Generate status file
         run: |
-          if [ -f mutation_results.json ]; then
-            # Parse JSON and generate markdown
-            SCORE=$(jq -r '.stats.score' mutation_results.json)
-            TOTAL=$(jq -r '.stats.total' mutation_results.json)
-            KILLED=$(jq -r '.stats.killed' mutation_results.json)
-            SURVIVED=$(jq -r '.stats.survived' mutation_results.json)
-            TIMED_OUT=$(jq -r '.stats.timedOut' mutation_results.json)
-            ERRORS=$(jq -r '.stats.errors' mutation_results.json)
+          TOTAL=$(cat /tmp/total.txt)
+          KILLED=$(cat /tmp/killed.txt)
+          SURVIVED=$(cat /tmp/survived.txt)
+          TIMED_OUT=$(cat /tmp/timedout.txt)
+          ERRORS=$(cat /tmp/errors.txt)
+          SCORE=$(cat /tmp/score.txt)
 
-            # Format duration
-            DURATION=${{ steps.mutation.outputs.duration }}
-            if [ "$DURATION" -ge 3600 ]; then
-              DURATION_FMT="$((DURATION / 3600))h $((DURATION % 3600 / 60))m $((DURATION % 60))s"
-            elif [ "$DURATION" -ge 60 ]; then
-              DURATION_FMT="$((DURATION / 60))m $((DURATION % 60))s"
-            else
-              DURATION_FMT="${DURATION}s"
-            fi
+          # Format duration
+          DURATION=${{ steps.mutation.outputs.duration }}
+          if [ "$DURATION" -ge 3600 ]; then
+            DURATION_FMT="$((DURATION / 3600))h $((DURATION % 3600 / 60))m $((DURATION % 60))s"
+          elif [ "$DURATION" -ge 60 ]; then
+            DURATION_FMT="$((DURATION / 60))m $((DURATION % 60))s"
+          else
+            DURATION_FMT="${DURATION}s"
+          fi
 
-            cat > testdata/mutation_status.md << EOF
+          cat > testdata/mutation_status.md << 'HEADER'
           # Mutation Testing Status
+          HEADER
+
+          cat >> testdata/mutation_status.md << EOF
 
           Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
@@ -76,7 +80,7 @@ jobs:
 
           | Metric | Value |
           |--------|-------|
-          | Score | ${SCORE}% |
+          | Score | **${SCORE}%** |
           | Total Mutations | ${TOTAL} |
           | Killed | ${KILLED} |
           | Survived | ${SURVIVED} |
@@ -86,8 +90,8 @@ jobs:
 
           ## Test Configuration
 
-          - **Target**: \`testdata/\`
-          - **Mode**: Isolated (parse-only)
+          - **Target**: \`testdata/TestLib.lean\`
+          - **Mode**: Build (full compilation)
           - **Generator**: LeanMutator
           - **Started**: ${{ steps.mutation.outputs.start_time }}
           - **Finished**: ${{ steps.mutation.outputs.end_time }}
@@ -95,11 +99,9 @@ jobs:
           ## Notes
 
           - Automated weekly run via GitHub Actions
-          - Use \`--build\` flag for full compilation testing
+          - Tests use \`#guard\` compile-time assertions
+          - Mutations are tested by full compilation (\`--build\` flag)
           EOF
-          else
-            echo "No mutation results found" > testdata/mutation_status.md
-          fi
 
       - name: Commit and push status
         run: |

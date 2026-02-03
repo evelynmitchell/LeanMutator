@@ -1,0 +1,6 @@
+name = "testdata"
+version = "0.1.0"
+defaultTargets = ["TestLib"]
+
+[[lean_lib]]
+name = "TestLib"

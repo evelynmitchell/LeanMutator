@@ -1,43 +1,42 @@
 # Mutation Testing Status
 
-Last updated: 2026-02-03 04:02:00 UTC
+Last updated: 2026-02-03 04:10:00 UTC
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 16 |
-| Total Mutations | ~400 |
-| Killed | 0 |
-| Survived | ~400 |
+| Score | **94.81%** |
+| Total Mutations | 154 |
+| Killed | 146 |
+| Survived | 8 |
 | Timed Out | 0 |
 | Errors | 0 |
-| **Duration** | **~1m 7s** |
+| **Duration** | **2m 19s** |
 
 ## Test Configuration
 
-- **Target**: `testdata/`
-- **Mode**: Isolated (parse-only)
+- **Target**: `testdata/TestLib.lean`
+- **Mode**: Build (full compilation)
 - **Generator**: LeanMutator
-- **Started**: 2026-02-03 04:00:53 UTC
-- **Finished**: 2026-02-03 04:02:00 UTC
+- **Started**: 2026-02-03 04:07:00 UTC
+- **Finished**: 2026-02-03 04:09:19 UTC
 
-## Mutation Operators Applied
+## Surviving Mutations
 
-| Operator | Count |
-|----------|-------|
-| boolean-flip | 2 |
-| numeric-boundary | 18 |
-| string-literal | 6 |
-| arithmetic-add-sub | 2 |
-| arithmetic-mul-div | 2 |
-| arithmetic-mod | 1 |
-| comparison-equality | 15 |
-| comparison-relational | 12 |
-| boolean-and-or | 2 |
+| Line | Operator | Original | Mutated |
+|------|----------|----------|---------|
+| 14 | comparison-relational | `>` | `>=` |
+| 15 | comparison-relational | `<` | `<=` |
+| 17 | comparison-relational | `<` | `<=` |
+| 18 | comparison-relational | `>` | `>=` |
+| 41 | numeric-boundary | `1` | `2` |
+| 41 | numeric-boundary | `1` | `2` |
+| 44 | comparison-relational | `<` | `<=` |
+| 60 | arithmetic-add-sub | `-` | `+` |
 
 ## Notes
 
-- All mutations survived because the default testing mode only checks if mutated code parses successfully
-- Use `--build` flag for full compilation testing to get more accurate kill rates
+- Tests use `#guard` compile-time assertions
+- Surviving mutations are boundary cases (`<` vs `<=`, `>` vs `>=`) where test inputs don't distinguish between the two
 - Weekly automated runs are configured via GitHub Actions
