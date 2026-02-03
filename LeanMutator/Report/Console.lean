@@ -36,7 +36,7 @@ def formatStatus (status : MutationStatus) (useColor : Bool := true) : String :=
 def formatResult (result : MutationResult) (useColor : Bool := true)
     (verbose : Bool := false) : String :=
   let status := formatStatus result.status useColor
-  let loc := s!"{result.mutation.file}:{result.mutation.location.startCol}"
+  let loc := s!"{result.mutation.file}:{result.mutation.location.startLine}:{result.mutation.location.startCol}"
   let op := result.mutation.operator
 
   let header := s!"[{status}] {loc} - {op}"

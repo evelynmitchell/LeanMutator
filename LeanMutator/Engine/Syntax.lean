@@ -50,6 +50,22 @@ def TraversalContext.freshId (ctx : TraversalContext) : IO Nat := do
   ctx.nextId.set (id + 1)
   return id
 
+/-- Convert byte position to line number and column -/
+def bytePositionToLineCol (source : String) (bytePos : Nat) : (Nat × Nat) := Id.run do
+  let mut line := 1
+  let mut col := 1
+  let mut pos := 0
+  for c in source.toList do
+    if pos >= bytePos then
+      break
+    if c == '\n' then
+      line := line + 1
+      col := 1
+    else
+      col := col + 1
+    pos := pos + 1
+  (line, col)
+
 /-- Extract source text for a syntax node -/
 def extractSourceText (source : String) (s : Lean.Syntax) : String :=
   -- Get the position range from syntax
@@ -108,12 +124,18 @@ def generateMutations (ctx : TraversalContext) (points : Array MutationPoint)
     for (mutatedStx, desc) in mutatedSyntaxes do
       let id ← ctx.freshId
       let mutatedText := syntaxToString mutatedStx
+      -- Compute proper line/column from byte position
+      let (startLine, startCol) := bytePositionToLineCol ctx.source point.positionIdx
+      let endPos := point.positionIdx + point.originalText.length
+      let (endLine, endCol) := bytePositionToLineCol ctx.source endPos
       let loc : SourceLocation := {
         file := ctx.file
-        startLine := 0  -- TODO: compute from FileMap
-        startCol := point.positionIdx
-        endLine := 0
-        endCol := point.positionIdx + point.originalText.length
+        startLine := startLine
+        startCol := startCol
+        endLine := endLine
+        endCol := endCol
+        startByte := point.positionIdx
+        endByte := endPos
       }
       mutations := mutations.push {
         file := ctx.file
@@ -129,9 +151,9 @@ def generateMutations (ctx : TraversalContext) (points : Array MutationPoint)
 /-- Apply a mutation to source code, returning the modified source -/
 def applyMutation (source : String) (mutation : Mutation) : String :=
   -- Simple string replacement based on byte positions
-  let startIdx := mutation.location.startCol
-  let endIdx := mutation.location.endCol
-  if startIdx < source.length && endIdx <= source.length then
+  let startIdx := mutation.location.startByte
+  let endIdx := mutation.location.endByte
+  if startIdx < source.length && endIdx <= source.length && startIdx < endIdx then
     let chars := source.toList
     let before := String.ofList (chars.take startIdx)
     let after := String.ofList (chars.drop endIdx)

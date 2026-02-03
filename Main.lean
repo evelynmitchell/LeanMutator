@@ -96,12 +96,14 @@ def mutateFile (file : System.FilePath) (config : CliConfig) : IO (Array Mutatio
   let runnerConfig : RunnerConfig := {
     timeout := config.timeout
     keepTempFiles := false
+    workDir := file.parent
   }
 
   let schedulerConfig : SchedulerConfig := {
     numWorkers := config.parallel
     runnerConfig := runnerConfig
     onProgress := if config.useColor then some (Console.progressCallback true) else none
+    useBuildTesting := !config.isolated
   }
 
   -- Create source map
@@ -188,6 +190,7 @@ def printUsage : IO Unit := do
   IO.println "  -r, --report PATH    Path for json/html report"
   IO.println "  -v, --verbose        Show detailed output"
   IO.println "  --no-color           Disable colored output"
+  IO.println "  --build              Use full build testing (slower, more accurate)"
   IO.println ""
   IO.println "EXAMPLES:"
   IO.println "  leanmutator mutate src/MyFile.lean"
@@ -249,6 +252,9 @@ def parseArgs (args : List String) : IO (String × CliConfig × Array String) :=
       i := i + 1
     else if arg == "--no-color" then
       config := { config with useColor := false }
+      i := i + 1
+    else if arg == "--build" then
+      config := { config with isolated := false }
       i := i + 1
     else if !arg.startsWith "-" then
       files := files.push arg

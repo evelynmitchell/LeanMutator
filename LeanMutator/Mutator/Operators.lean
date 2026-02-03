@@ -17,6 +17,10 @@ structure SourceLocation where
   startCol : Nat
   endLine : Nat
   endCol : Nat
+  /-- Start byte position (for source manipulation) -/
+  startByte : Nat := 0
+  /-- End byte position (for source manipulation) -/
+  endByte : Nat := 0
   deriving Repr, Inhabited, BEq
 
 /-- Convert a Lean SourceInfo to our SourceLocation -/

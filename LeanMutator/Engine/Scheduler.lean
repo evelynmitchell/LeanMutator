@@ -31,6 +31,8 @@ structure SchedulerConfig where
   runnerConfig : RunnerConfig := {}
   /-- Callback for progress updates -/
   onProgress : Option (Nat → Nat → IO Unit) := none
+  /-- Use build-based testing (true) or parse-only isolated testing (false) -/
+  useBuildTesting : Bool := false
   deriving Inhabited
 
 /-- Statistics for a mutation run -/
@@ -121,7 +123,10 @@ def runSequential (mutations : Array Mutation) (sources : SourceMap)
 
   for mutation in mutations do
     let source := sources.find? mutation.file |>.getD ""
-    let result ← testMutationIsolated mutation source config.runnerConfig
+    let result ← if config.useBuildTesting then
+      testMutation mutation source config.runnerConfig
+    else
+      testMutationIsolated mutation source config.runnerConfig
     results := results.push result
     tracker.increment
 

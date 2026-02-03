@@ -99,6 +99,8 @@ def findSourceMutations (source : String) (file : System.FilePath) (nextId : IO.
           startCol := col
           endLine := line
           endCol := col + pattern.pattern.length
+          startByte := pos
+          endByte := pos + pattern.pattern.length
         }
 
         mutations := mutations.push {
