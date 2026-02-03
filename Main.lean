@@ -78,13 +78,19 @@ def mutateFile (file : System.FilePath) (config : CliConfig) : IO (Array Mutatio
     IO.eprintln "No mutation operators selected"
     return (#[], {})
 
-  -- Create traversal context and find mutations
+  -- Create traversal context and find syntax-level mutations
   let ctx ← TraversalContext.new source file operators
   let points ← findMutationPoints ctx stx
-  let mutations ← generateMutations ctx points
+  let syntaxMutations ← generateMutations ctx points
+
+  -- Also find source-level mutations (for operators the parser doesn't recognize)
+  let sourceMutations ← Engine.SourceMutator.findSourceMutations source file ctx.nextId
+
+  -- Combine both types of mutations
+  let mutations := syntaxMutations ++ sourceMutations
 
   if config.verbose then
-    IO.println s!"Found {mutations.size} mutation points in {file}"
+    IO.println s!"Found {mutations.size} mutation points in {file} ({syntaxMutations.size} syntax, {sourceMutations.size} source)"
 
   -- Configure runner
   let runnerConfig : RunnerConfig := {

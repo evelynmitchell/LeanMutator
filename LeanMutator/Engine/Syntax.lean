@@ -140,6 +140,28 @@ def applyMutation (source : String) (mutation : Mutation) : String :=
     -- Fallback: try simple find-replace
     source.replace mutation.original mutation.mutated
 
+/-- Extract import names from header syntax -/
+partial def extractImports (header : Syntax) : Array Import :=
+  let rec findIdents (stx : Syntax) : Array Name :=
+    match stx with
+    | Syntax.ident _ _ name _ => #[name]
+    | Syntax.node _ kind args =>
+      -- Check if this looks like an import node
+      let kindStr := kind.toString
+      if kindStr.endsWith "import" || kindStr.endsWith "Import" then
+        args.foldl (fun acc arg => acc ++ findIdents arg) #[]
+      else
+        args.foldl (fun acc arg => acc ++ findIdents arg) #[]
+    | _ => #[]
+  let names := findIdents header
+  -- Filter out likely non-import identifiers (like `import` keyword itself)
+  names.filterMap fun name =>
+    let s := name.toString
+    if s != "import" && !s.isEmpty && s.front.isUpper then
+      some { module := name : Import }
+    else
+      none
+
 /-- Parse a Lean file and return the syntax tree -/
 def parseFile (path : System.FilePath) : IO (Except String Lean.Syntax) := do
   -- Read the file
@@ -149,7 +171,7 @@ def parseFile (path : System.FilePath) : IO (Except String Lean.Syntax) := do
   let inputCtx := Parser.mkInputContext contents path.toString
   let (header, parserState, messages) ← Parser.parseHeader inputCtx
 
-  -- Check for errors
+  -- Check for header parse errors
   if messages.hasErrors then
     let mut errStrs : Array String := #[]
     for msg in messages.toList do
@@ -158,9 +180,46 @@ def parseFile (path : System.FilePath) : IO (Except String Lean.Syntax) := do
         errStrs := errStrs.push msgStr
     return .error s!"Parse errors:\n{String.intercalate "\n" errStrs.toList}"
 
-  -- Parse the rest of the file using a simpler approach
-  -- For now, just return the header as we can still find mutations in it
-  return .ok header
+  -- Extract imports from header and try to load them
+  let imports := extractImports header
+  -- Try to import modules with proper search path
+  let env ← try
+    -- Initialize search path from LEAN_PATH environment variable
+    Lean.initSearchPath (← Lean.findSysroot)
+    if imports.isEmpty then
+      -- No imports in file, try to get Init for basic operators
+      Lean.importModules #[{ module := `Init : Import }] {}
+    else
+      Lean.importModules imports {}
+  catch _ =>
+    -- Fall back to empty environment if imports fail
+    Lean.importModules #[] {}
+
+  let pmctx : Parser.ParserModuleContext := {
+    env := env
+    options := {}
+  }
+
+  -- Parse all commands until end of file
+  let mut commands : Array Syntax := #[]
+  let mut modState := parserState
+  let mut msgLog := messages
+
+  while !inputCtx.atEnd modState.pos do
+    let (cmd, newModState, newMsgLog) := Parser.parseCommand inputCtx pmctx modState msgLog
+    -- Check if we made progress
+    if newModState.pos == modState.pos then
+      -- No progress, we're done or stuck
+      break
+    commands := commands.push cmd
+    modState := newModState
+    msgLog := newMsgLog
+
+  -- Combine header and commands into a single node
+  let allNodes := #[header] ++ commands
+  let combined := Syntax.node .none `module allNodes
+
+  return .ok combined
 
 /-- Parse source string and return syntax tree -/
 def parseSource (source : String) (fileName : String := "<input>")

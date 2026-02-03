@@ -15,6 +15,7 @@ import LeanMutator.Mutator.Literals
 import LeanMutator.Engine.Syntax
 import LeanMutator.Engine.Runner
 import LeanMutator.Engine.Scheduler
+import LeanMutator.Engine.SourceMutator
 
 -- Reporting
 import LeanMutator.Report.Console
