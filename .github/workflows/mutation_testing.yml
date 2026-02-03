@@ -1,0 +1,90 @@
+name: Weekly Mutation Testing
+
+on:
+  schedule:
+    # Run every Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mutation-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - uses: leanprover/lean-action@v1
+        with:
+          build: true
+
+      - name: Copy source files to testdata
+        run: |
+          mkdir -p testdata
+          for f in $(find . -name "*.lean" -not -path "./testdata/*" -not -path "./.lake/*"); do
+            mkdir -p "testdata/$(dirname "$f")"
+            cp "$f" "testdata/$f"
+          done
+
+      - name: Run mutation tests
+        id: mutation
+        run: |
+          lake exe leanmutator mutate testdata/ --format json --report mutation_results.json -v || true
+          echo "completed=true" >> $GITHUB_OUTPUT
+
+      - name: Generate status file
+        run: |
+          if [ -f mutation_results.json ]; then
+            # Parse JSON and generate markdown
+            SCORE=$(jq -r '.stats.score' mutation_results.json)
+            TOTAL=$(jq -r '.stats.total' mutation_results.json)
+            KILLED=$(jq -r '.stats.killed' mutation_results.json)
+            SURVIVED=$(jq -r '.stats.survived' mutation_results.json)
+            TIMED_OUT=$(jq -r '.stats.timedOut' mutation_results.json)
+            ERRORS=$(jq -r '.stats.errors' mutation_results.json)
+            TIME=$(jq -r '.stats.totalTime' mutation_results.json)
+
+            cat > testdata/mutation_status.md << EOF
+          # Mutation Testing Status
+
+          Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          ## Summary
+
+          | Metric | Value |
+          |--------|-------|
+          | Score | ${SCORE}% |
+          | Total Mutations | ${TOTAL} |
+          | Killed | ${KILLED} |
+          | Survived | ${SURVIVED} |
+          | Timed Out | ${TIMED_OUT} |
+          | Errors | ${ERRORS} |
+          | Total Time | ${TIME}ms |
+
+          ## Test Configuration
+
+          - **Target**: \`testdata/\`
+          - **Mode**: Isolated (parse-only)
+          - **Generator**: LeanMutator
+
+          ## Notes
+
+          - Automated weekly run via GitHub Actions
+          - Use \`--build\` flag for full compilation testing
+          EOF
+          else
+            echo "No mutation results found" > testdata/mutation_status.md
+          fi
+
+      - name: Commit and push status
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add testdata/
+          git diff --staged --quiet || git commit -m "Update mutation testing status [skip ci]"
+          git push
