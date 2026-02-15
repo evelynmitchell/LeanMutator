@@ -1,6 +1,6 @@
 # Mutation Testing Status
 
-Last updated: 2026-02-08 00:27:47 UTC
+Last updated: 2026-02-15 00:23:11 UTC
 
 ## Summary
 
@@ -12,15 +12,15 @@ Last updated: 2026-02-08 00:27:47 UTC
 | Survived | 8 |
 | Timed Out | 0 |
 | Errors | 0 |
-| **Duration** | **1m 37s** |
+| **Duration** | **1m 26s** |
 
 ## Test Configuration
 
 - **Target**: `testdata/TestLib.lean`
 - **Mode**: Build (full compilation)
 - **Generator**: LeanMutator
-- **Started**: 2026-02-08 00:26:10 UTC
-- **Finished**: 2026-02-08 00:27:47 UTC
+- **Started**: 2026-02-15 00:21:45 UTC
+- **Finished**: 2026-02-15 00:23:11 UTC
 
 ## Notes
 
